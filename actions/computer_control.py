@@ -20,7 +20,12 @@ try:
     pyautogui.FAILSAFE = True
     pyautogui.PAUSE    = 0.05
     _PYAUTOGUI = True
-except ImportError:
+except KeyboardInterrupt:
+    raise
+except BaseException:
+    # pyautogui -> MouseInfo calls sys.exit(1) (SystemExit, not ImportError)
+    # when system tkinter is missing on Linux. A missing optional GUI
+    # dependency must degrade the action, never kill the whole app.
     _PYAUTOGUI = False
 
 try:
@@ -78,6 +83,86 @@ def _safe_screenshot_path(requested: str | None) -> Path:
 def _require_pyautogui():
     if not _PYAUTOGUI:
         raise RuntimeError("PyAutoGUI not installed. Run: pip install pyautogui")
+
+# ── pynput keyboard backend ──────────────────────────────────────────────────
+# pyautogui needs system tkinter on Linux, which may be missing. pynput drives
+# the same keys via X11 XTEST with no system packages, so typing, hotkeys and
+# single-key presses keep working. Mouse actions (click/move/scroll) still need
+# pyautogui. The backend is imported lazily (per call) so it can never break
+# startup, and a fresh Controller is built per call so executor threads never
+# share one.
+_PYNPUT_OK: bool | None = None
+
+def _pynput_available() -> bool:
+    global _PYNPUT_OK
+    if _PYNPUT_OK is None:
+        try:
+            import pynput.keyboard  # noqa: F401
+            _PYNPUT_OK = True
+        except KeyboardInterrupt:
+            raise
+        except BaseException:
+            _PYNPUT_OK = False
+    return _PYNPUT_OK
+
+def _require_keyboard():
+    if not _PYAUTOGUI and not _pynput_available():
+        raise RuntimeError(
+            "No keyboard backend. Run: pip install pynput "
+            "(or: sudo apt-get install python3-tk for PyAutoGUI)"
+        )
+
+def _pynput_key(name: str):
+    """Map a pyautogui-style key name to a pynput key / character."""
+    from pynput.keyboard import Key, KeyCode
+    n = (name or "").strip().lower()
+    _special = {
+        "enter": Key.enter, "return": Key.enter, "tab": Key.tab,
+        "esc": Key.esc, "escape": Key.esc, "space": Key.space,
+        "backspace": Key.backspace, "delete": Key.delete,
+        "shift": Key.shift, "ctrl": Key.ctrl, "control": Key.ctrl,
+        "alt": Key.alt, "altgr": Key.alt_gr,
+        "cmd": Key.cmd, "command": Key.cmd, "win": Key.cmd,
+        "super": Key.cmd, "menu": Key.menu,
+        "up": Key.up, "down": Key.down, "left": Key.left, "right": Key.right,
+        "home": Key.home, "end": Key.end,
+        "pageup": Key.page_up, "pagedown": Key.page_down,
+        "insert": Key.insert, "pause": Key.pause,
+        "capslock": Key.caps_lock, "caps_lock": Key.caps_lock,
+        "numlock": Key.num_lock, "num_lock": Key.num_lock,
+        "scrolllock": Key.scroll_lock, "printscreen": Key.print_screen,
+    }
+    if n in _special:
+        return _special[n]
+    if n.startswith("f") and n[1:].isdigit() and 1 <= int(n[1:]) <= 20:
+        return getattr(Key, n, None)
+    if len(name) == 1:
+        return KeyCode.from_char(name)
+    return None
+
+def _pynput_type(text: str) -> None:
+    from pynput.keyboard import Controller
+    Controller().type(text)
+
+def _pynput_hotkey(*keys: str) -> None:
+    from pynput.keyboard import Controller
+    kb = Controller()
+    mapped = [_pynput_key(k) for k in keys]
+    if not mapped or any(k is None for k in mapped):
+        raise RuntimeError(f"Unsupported key in hotkey: {'+'.join(keys)}")
+    for k in mapped:
+        kb.press(k)
+    for k in reversed(mapped):
+        kb.release(k)
+
+def _pynput_press(key: str) -> None:
+    from pynput.keyboard import Controller
+    mapped = _pynput_key(key)
+    if mapped is None:
+        raise RuntimeError(f"Unsupported key: {key}")
+    kb = Controller()
+    kb.press(mapped)
+    kb.release(mapped)
 
 _FIRST_NAMES = [
     "Alex", "Jordan", "Taylor", "Morgan", "Casey", "Riley", "Drew", "Quinn",
@@ -154,27 +239,50 @@ def _user_profile() -> dict:
         pass
     return {}
 
+def _type_backend(text: str, interval: float = 0.03) -> None:
+    """Type via pyautogui when present, else pynput (no tkinter needed)."""
+    if _PYAUTOGUI:
+        pyautogui.typewrite(text, interval=interval)
+    else:
+        _pynput_type(text)
+
+def _hotkey_backend(*keys: str) -> None:
+    if _PYAUTOGUI:
+        pyautogui.hotkey(*keys)
+    else:
+        _pynput_hotkey(*keys)
+
+def _press_backend(key: str) -> None:
+    if _PYAUTOGUI:
+        pyautogui.press(key)
+    else:
+        _pynput_press(key)
+
 def _type(text: str, interval: float = 0.03) -> str:
-    _require_pyautogui()
+    _require_keyboard()
     time.sleep(0.3)
-    pyautogui.typewrite(text, interval=interval)
+    _type_backend(text, interval)
     return f"Typed: {text[:60]}{'…' if len(text) > 60 else ''}"
 
 
 def _smart_type(text: str, clear_first: bool = True) -> str:
-    _require_pyautogui()
+    _require_keyboard()
     if clear_first:
         _clear_field()
         time.sleep(0.1)
 
     if len(text) > 20 and _PYPERCLIP:
-        pyperclip.copy(text)
+        try:
+            pyperclip.copy(text)
+        except Exception:
+            _type_backend(text, 0.04)
+            return f"Smart-typed: {text[:60]}{'…' if len(text) > 60 else ''}"
         time.sleep(0.1)
         paste_key = "command" if _get_os() == "mac" else "ctrl"
-        pyautogui.hotkey(paste_key, "v")
+        _hotkey_backend(paste_key, "v")
         return f"Smart-typed (clipboard): {text[:60]}{'…' if len(text) > 60 else ''}"
 
-    pyautogui.typewrite(text, interval=0.04)
+    _type_backend(text, 0.04)
     return f"Smart-typed: {text[:60]}{'…' if len(text) > 60 else ''}"
 
 
@@ -188,14 +296,14 @@ def _click(x=None, y=None, button: str = "left", clicks: int = 1) -> str:
 
 
 def _hotkey(*keys) -> str:
-    _require_pyautogui()
-    pyautogui.hotkey(*keys)
+    _require_keyboard()
+    _hotkey_backend(*keys)
     return f"Hotkey: {'+'.join(keys)}"
 
 
 def _press(key: str) -> str:
-    _require_pyautogui()
-    pyautogui.press(key)
+    _require_keyboard()
+    _press_backend(key)
     return f"Pressed: {key}"
 
 
@@ -230,11 +338,14 @@ def _clipboard_get() -> str:
 
 def _clipboard_paste(text: str) -> str:
     if _PYPERCLIP:
-        pyperclip.copy(text)
+        try:
+            pyperclip.copy(text)
+        except Exception as e:
+            return f"Clipboard copy failed ({e}) — typed directly instead: {_type(text)}"
         time.sleep(0.1)
-        _require_pyautogui()
+        _require_keyboard()
         paste_key = "command" if _get_os() == "mac" else "ctrl"
-        pyautogui.hotkey(paste_key, "v")
+        _hotkey_backend(paste_key, "v")
         return f"Pasted: {text[:60]}{'…' if len(text) > 60 else ''}"
     return "pyperclip not available"
 
@@ -248,11 +359,11 @@ def _screenshot(save_path: str | None = None) -> str:
 
 
 def _clear_field() -> str:
-    _require_pyautogui()
+    _require_keyboard()
     select_key = "command" if _get_os() == "mac" else "ctrl"
-    pyautogui.hotkey(select_key, "a")
+    _hotkey_backend(select_key, "a")
     time.sleep(0.1)
-    pyautogui.press("delete")
+    _press_backend("delete")
     return "Field cleared"
 
 def _focus_window(title: str) -> str:

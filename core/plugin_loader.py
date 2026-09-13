@@ -188,7 +188,9 @@ def discover_plugins(plugins_dir: Path, core_tool_names: set[str],
             sys.modules[module_name] = module
             try:
                 spec.loader.exec_module(module)
-            except Exception:
+            except KeyboardInterrupt:
+                raise
+            except BaseException:
                 sys.modules.pop(module_name, None)
                 raise
 
@@ -202,7 +204,9 @@ def discover_plugins(plugins_dir: Path, core_tool_names: set[str],
                 rec = PluginRecord(name=rec.name, file=path.name,
                                     error=f"Name '{rec.name}' already used by plugin '{other}' — rejected.")
 
-        except Exception as e:
+        except KeyboardInterrupt:
+            raise
+        except BaseException as e:
             rec = PluginRecord(name=path.stem, file=path.name,
                                 error=f"Failed to load: {e}")
             traceback.print_exc()

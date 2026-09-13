@@ -107,7 +107,7 @@ def request(key: str, title: str, detail: str, run: Callable[[], str]) -> str:
     _log(f"SYS: Awaiting confirmation — {title}")
     return (
         f"[CONFIRMATION_PENDING] I have put a confirmation on screen for: {title}. "
-        f"Say ONE short sentence in the user's own language telling them you need "
+        f"Say ONE short sentence in English telling them you need "
         f"them to confirm it on the HUD before you do it. Do not claim it is done."
     )
 

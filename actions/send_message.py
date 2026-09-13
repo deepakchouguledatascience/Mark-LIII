@@ -9,7 +9,12 @@ try:
     pyautogui.FAILSAFE = True
     pyautogui.PAUSE    = 0.06
     _PYAUTOGUI = True
-except ImportError:
+except KeyboardInterrupt:
+    raise
+except BaseException:
+    # pyautogui -> MouseInfo calls sys.exit(1) (SystemExit, not ImportError)
+    # when system tkinter is missing on Linux. A missing optional GUI
+    # dependency must degrade the action, never kill the whole app.
     _PYAUTOGUI = False
 
 try:

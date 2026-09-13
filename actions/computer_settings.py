@@ -12,7 +12,12 @@ try:
     pyautogui.FAILSAFE = True
     pyautogui.PAUSE    = 0.05
     _PYAUTOGUI = True
-except ImportError:
+except KeyboardInterrupt:
+    raise
+except BaseException:
+    # pyautogui -> MouseInfo calls sys.exit(1) (SystemExit, not ImportError)
+    # when system tkinter is missing on Linux. A missing optional GUI
+    # dependency must degrade the action, never kill the whole app.
     _PYAUTOGUI = False
 
 try:
@@ -459,11 +464,14 @@ def take_screenshot():
 
 def lock_screen():
     if _OS == "Windows":
-        pyautogui.hotkey("win", "l")
+        # Native workstation lock — no pyautogui needed.
+        subprocess.run(["rundll32.exe", "user32.dll,LockWorkStation"],
+                       capture_output=True, **_WIN_HIDE)
     elif _OS == "Darwin":
         subprocess.run(["pmset", "displaysleepnow"], capture_output=True)
     else:
         for cmd in [
+            ["cinnamon-screensaver-command", "--lock"],   # Linux Mint first
             ["gnome-screensaver-command", "-l"],
             ["xdg-screensaver", "lock"],
             ["loginctl", "lock-session"],
@@ -592,6 +600,25 @@ def shutdown_computer():
     else:
         subprocess.run(["systemctl", "poweroff"], capture_output=True)
 
+def suspend_computer():
+    """Suspend (sleep) the whole machine now. Wakes with the power button.
+
+    Reversible, so — like lock — it runs immediately with no confirmation
+    gate. Only restart/shutdown/wifi ask for a button press."""
+    if _OS == "Windows":
+        try:
+            import ctypes
+            ctypes.windll.powrprof.SetSuspendState(False, True, False)
+        except Exception as e:
+            print(f"[Settings] suspend failed: {e}")
+    elif _OS == "Darwin":
+        subprocess.run(["pmset", "sleepnow"], capture_output=True)
+    else:
+        try:
+            subprocess.run(["systemctl", "suspend"], capture_output=True, timeout=10)
+        except Exception as e:
+            print(f"[Settings] suspend failed: {e}")
+
 ACTION_MAP: dict[str, callable] = {
     "volume_up":           volume_up,
     "volume_down":         volume_down,
@@ -652,6 +679,9 @@ ACTION_MAP: dict[str, callable] = {
     "toggle_wifi":         toggle_wifi,
     "restart":             restart_computer,
     "shutdown":            shutdown_computer,
+    "suspend":             suspend_computer,
+    "sleep":               suspend_computer,
+    "lock":                lock_screen,
 }
 
 # ── What needs a human, and what just needs an undo ──────────────────────────
@@ -708,16 +738,32 @@ _ALIASES = {
     "close_window":    ("close this", "close it"),
     "full_screen":     ("fullscreen", "maximise screen"),
     "show_desktop":    ("minimise everything", "go to desktop"),
-    "lock_screen":     ("lock", "lock the pc", "lock computer"),
-    "sleep_display":   ("screen off", "turn off the screen", "display off"),
+    "lock_screen":     ("lock", "lock the pc", "lock computer", "lock the laptop",
+                        "lock my laptop", "lock laptop", "lock screen",
+                        "lock the computer"),
+    "sleep_display":   ("screen off", "turn off the screen", "display off",
+                        "turn off the display"),
+    "suspend":         ("suspend", "suspend the laptop", "suspend my laptop",
+                        "suspend the pc", "suspend the computer",
+                        "put the laptop to sleep", "put laptop to sleep",
+                        "put the pc to sleep", "put my laptop to sleep",
+                        "sleep the laptop", "sleep my laptop", "go to sleep",
+                        "sleep now", "sleep mode", "sleep"),
     "dark_mode":       ("night mode", "light mode", "toggle theme"),
     "toggle_wifi":     ("wifi", "wi-fi", "internet off", "internet on"),
     "task_manager":    ("processes", "task list"),
     "screenshot":      ("capture screen", "take a screenshot", "snip"),
     "refresh_page":    ("refresh", "reload page"),
     "new_tab":         ("open a tab", "open new tab"),
-    "shutdown":        ("power off", "turn off the computer", "switch off the pc"),
-    "restart":         ("reboot", "restart the pc"),
+    "shutdown":        ("power off", "turn off the computer", "switch off the pc",
+                        "shut down the laptop", "shutdown the laptop",
+                        "shut down my laptop", "power off the laptop",
+                        "turn off the laptop", "switch off the laptop",
+                        "shut down", "shutdown", "power off my pc"),
+    "restart":         ("reboot", "restart the pc", "restart the laptop",
+                        "restart my laptop", "reboot the laptop",
+                        "reboot my laptop", "restart the computer",
+                        "reboot the computer", "restart now"),
 }
 
 _VALUE_ACTIONS = {"volume_set", "type_text", "press_key", "reload_n",
@@ -787,9 +833,6 @@ def computer_settings(
     player=None,
     session_memory=None,
 ) -> str:
-    if not _PYAUTOGUI:
-        return "pyautogui is not installed. Run: pip install pyautogui"
-
     params      = parameters or {}
     raw_action  = params.get("action", "").strip()
     description = params.get("description", "").strip()
@@ -805,6 +848,14 @@ def computer_settings(
 
     if not action:
         return _suggest(description or raw_action)
+
+    # Power actions are pure subprocess/native on every OS — they must work
+    # even when pyautogui (system tkinter) is missing. Everything else still
+    # needs it.
+    if not _PYAUTOGUI and action not in {
+        "restart", "shutdown", "suspend", "sleep", "lock", "lock_screen",
+    }:
+        return "pyautogui is not installed. Run: pip install pyautogui"
 
     print(f"[Settings] Action: {action}  Value: {value}  OS: {_OS}")
     if player:
@@ -911,7 +962,7 @@ def computer_settings(
 # ── Tool declaration (auto-discovered by core/action_loader.py) ──────────────
 TOOL = {
     "name": "computer_settings",
-    "description": "Controls the computer: volume, brightness, window management, keyboard shortcuts, typing text on screen, closing apps, fullscreen, dark mode, WiFi, restart, shutdown, scrolling, tab management, zoom, screenshots, lock screen, refresh/reload page. Use for ANY single computer control command. restart, shutdown and toggle_wifi put a confirmation on the user's screen and do NOT happen until they press it — never claim they are done. Volume, brightness and dark mode can be reversed with the `undo` tool.",
+    "description": "Controls the computer: volume, brightness, window management, keyboard shortcuts, typing text on screen, closing apps, fullscreen, dark mode, WiFi, restart, shutdown, suspend, scrolling, tab management, zoom, screenshots, lock screen, refresh/reload page. Use for ANY single computer control command. restart, shutdown and toggle_wifi put a confirmation on the user's screen and do NOT happen until they press it — never claim they are done. suspend puts the whole laptop to sleep at once (power button wakes it); sleep_display only turns the screen off; lock_screen locks immediately. Volume, brightness and dark mode can be reversed with the `undo` tool.",
     "parameters": {
         "type": "OBJECT",
         "properties": {
@@ -941,7 +992,7 @@ TOOL = {
                     "undo | redo | select_all | save | enter | escape | press_key | "
                     "type_text | screenshot | lock_screen | open_settings | "
                     "file_explorer | open_run | dark_mode | toggle_wifi | "
-                    "restart | shutdown"
+                    "restart | shutdown | suspend | sleep"
                 )
             },
             "description": {

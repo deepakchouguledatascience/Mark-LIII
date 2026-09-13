@@ -225,12 +225,12 @@ def format_memory_for_prompt(memory: dict | None) -> str:
         if not val:
             continue
         if field == "language":
-            # Labelled as an observation, not a setting. A bare "Language:
-            # English" line written months ago reads like a standing order and
-            # was one of the reasons a Turkish question came back in English.
+            # Explicit preference only. Default is English; the model must
+            # not auto-switch just because the user wrote in another language.
             core_lines.append(
-                f"Has spoken to you in: {val} (an observation about the past — "
-                f"always answer in the language of their CURRENT message)")
+                f"Preferred spoken language: {val} (default is English — "
+                f"stay in English unless the user explicitly asks to switch; "
+                f"never switch languages on your own)")
         else:
             core_lines.append(f"{field.title()}: {val}")
     for key, entry in identity.items():

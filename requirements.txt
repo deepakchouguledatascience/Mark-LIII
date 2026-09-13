@@ -14,6 +14,7 @@ playwright
 pyautogui
 pyperclip
 pygetwindow
+pynput  # keyboard backend that works without system tkinter (dictation/typing)
 
 # ── Vision & media ────────────────────────────────────────────────────────────
 pillow

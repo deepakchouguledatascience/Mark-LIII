@@ -59,8 +59,7 @@ from memory.memory_manager import (
 # imported or declared here — they self-describe via a TOOL dict in their own
 # actions/*.py file and are auto-discovered by core.action_loader at startup.
 # Only tools that are tied to live-session state stay inline in this file
-# (screen_process, close_camera, save_memory, manage_monitor, shutdown_jarvis,
-# system_status).
+# (screen_process, close_camera, save_memory, manage_monitor, system_status).
 from actions.screen_processor  import _capture_camera, _capture_screen
 from actions.system_monitor    import SystemMonitor, get_system_status
 from actions.proactive         import ProactiveEngine
@@ -213,19 +212,6 @@ TOOL_DECLARATIONS = [
             },
             "required": ["action"],
         },
-    },
-    {
-        "name": "shutdown_jarvis",
-        "description": (
-            "Shuts down the assistant completely. "
-            "Call this when the user expresses intent to end the conversation, "
-            "close the assistant, say goodbye, or stop Jarvis. "
-            "The user can say this in ANY language."
-        ),
-        "parameters": {
-            "type": "OBJECT",
-            "properties": {},
-        }
     },
     {
         "name": "save_memory",
@@ -527,8 +513,8 @@ class JarvisLive:
         say something short WHILE its run() is still executing (plugins block
         their executor thread, so they can't speak through the tool response
         until they finish). The instruction is injected into the Live session
-        exactly like a proactive check-in; Gemini phrases it naturally in the
-        user's language. Silently a no-op when no session is connected.
+        exactly like a proactive check-in; Gemini phrases it naturally in English
+        (or the explicitly requested language). Silently a no-op when no session is connected.
         """
         loop = getattr(self, "_loop", None)
         if not loop or not self.session:
@@ -819,7 +805,7 @@ class JarvisLive:
                     self._pending_vision = (img_b, mime_t, user_text, angle)
                     result = (
                         f"[VISION_ACTIVE] {_stall.capitalize()} captured. "
-                        f"Immediately say ONE short natural sentence in the user's own language, "
+                        f"Immediately say ONE short natural sentence in English, "
                         f"telling them you are looking at their {_stall} right now. "
                         f"Do NOT describe or guess content — the actual image arrives in the NEXT message."
                     )
@@ -846,21 +832,15 @@ class JarvisLive:
                     result = "Specify action (add/remove/list) and a topic."
 
             elif name == "shutdown_jarvis":
-                self.ui.write_log("SYS: Shutdown requested.")
-                async def _do_shutdown():
-                    await self._save_session_summary()
-                    if self.session:
-                        try:
-                            await self.session.send_client_content(
-                                turns={"role": "user", "parts": [{"text": "Say a brief natural goodbye to the user."}]},
-                                turn_complete=True,
-                            )
-                        except Exception:
-                            pass
-                    await asyncio.sleep(1.5)
-                    import os as _os
-                    _os._exit(0)
-                asyncio.create_task(_do_shutdown())
+                # Manual-close only: the app is NEVER killed by voice.
+                # This branch is a safety net for a stale/resumed session
+                # that still tries the removed tool — say goodbye, stay online.
+                self.ui.write_log("SYS: Goodbye said — staying online (close the window to quit).")
+                asyncio.create_task(self._save_session_summary())
+                result = (
+                    "Just say a brief natural goodbye to the user and stay online. "
+                    "Do NOT shut down: the application is closed manually by the user."
+                )
 
             elif self._action_registry.has(name):
                 # file_processor: fall back to the currently-uploaded file when none is given
@@ -1063,6 +1043,29 @@ class JarvisLive:
                                         "text": full_in,
                                         "ts": datetime.now().isoformat(),
                                     }))
+                                # Dictation mode: type what the user said at the
+                                # focused cursor in ANY application. Runs
+                                # off-thread (key synthesis blocks); the
+                                # off-switch phrase itself is never typed.
+                                try:
+                                    from actions import dictate as _dmod
+                                    if _dmod.is_active() and not self.ui.muted:
+                                        if _dmod.is_stop_phrase(full_in):
+                                            self.ui.write_log("SYS: Stop phrase heard — not typed.")
+                                        elif _dmod.is_review_command(full_in):
+                                            # Review command: never type it. Let the
+                                            # Live model handle it as a normal turn —
+                                            # it will call dictate(readback/fix/
+                                            # correct/undo_last/history).
+                                            self.ui.write_log("SYS: Review command heard — not typed.")
+                                        else:
+                                            _dtxt = full_in
+                                            asyncio.create_task(asyncio.to_thread(
+                                                _dmod.type_text, _dtxt,
+                                            ))
+                                            self.ui.write_log("SYS: Dictated to focused app.")
+                                except Exception as _de:
+                                    print(f"[Dictate] hook failed: {_de}")
                             in_buf = []
 
                             full_out = " ".join(out_buf).strip()
@@ -1232,12 +1235,11 @@ class JarvisLive:
             return
 
         # ── Phase 1: instant greeting ─────────────────────────────────────────
-        # The briefing fires before the user has said anything, so the
-        # remembered language is the only signal there is. It is a starting
-        # point, not a setting: the moment they reply, their language wins.
-        lang_clause = (f" Speak this greeting in {lang}, then follow the "
-                       f"user's own language from their first reply onward."
-                       if lang else "")
+        # Default language is English. Only use the remembered language if it
+        # was set by an explicit user request ("speak in ...").
+        lang_clause = (f" Speak this greeting in {lang}."
+                       if lang and lang.lower() != "english" else
+                       " Speak this greeting in English.")
         name_clause = f" Address the user as {name}." if name else ""
 
         # Inject last session context if available — pop removes it so it's never repeated
@@ -1271,9 +1273,9 @@ class JarvisLive:
         # ── Phase 2: fire as soon as Phase 1 audio is done ───────────────────
         async def _deliver_news():
             try:
-                lang_str = (f" Speak in {lang} unless the user has since "
-                            f"spoken another language, in which case use theirs."
-                            if lang else "")
+                lang_str = (f" Speak in {lang}."
+                            if lang and lang.lower() != "english" else
+                            " Speak in English.")
 
                 # Wait for news fetch (already running) and Phase 1 turn-complete
                 # in parallel — whichever takes longer determines the wait time

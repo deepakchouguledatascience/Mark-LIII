@@ -157,7 +157,12 @@ def discover_actions(actions_dir: Path, reserved_names: set[str] | None = None,
                 sys.modules[module_name] = module
                 try:
                     spec.loader.exec_module(module)
-                except Exception:
+                except KeyboardInterrupt:
+                    raise
+                except BaseException:
+                    # e.g. SystemExit from a dependency that calls
+                    # sys.exit() on import (MouseInfo without tkinter).
+                    # One bad action must never kill the whole app.
                     sys.modules.pop(module_name, None)
                     raise
 
@@ -174,7 +179,9 @@ def discover_actions(actions_dir: Path, reserved_names: set[str] | None = None,
                 rec = ActionRecord(name=rec.name, file=path.name,
                                    error=f"Name '{rec.name}' already used by action '{other}' — rejected.")
 
-        except Exception as e:
+        except KeyboardInterrupt:
+            raise
+        except BaseException as e:
             rec = ActionRecord(name=path.stem, file=path.name,
                                error=f"Failed to load: {e}")
             traceback.print_exc()
