@@ -1,0 +1,90 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - generic [ref=e3]:
+      - generic [ref=e4]: U
+      - generic [ref=e5]:
+        - text: Universal App Installer
+        - generic [ref=e6]: Windows · Linux · macOS
+    - status [ref=e7]:
+      - generic [ref=e9]: Detecting OS…
+    - search [ref=e10]:
+      - generic [ref=e11]:
+        - searchbox "Search packages" [ref=e12]
+        - generic "Press / to focus search" [ref=e13]: /
+      - button "Search" [ref=e14] [cursor=pointer]
+      - button "Toggle theme" [ref=e15] [cursor=pointer]: Theme
+  - tablist "Sections" [ref=e17]:
+    - tab "Dashboard" [selected] [ref=e18] [cursor=pointer]
+    - tab "Applications" [ref=e19] [cursor=pointer]
+    - tab "Search & Install" [ref=e20] [cursor=pointer]
+    - tab "Updates" [ref=e21] [cursor=pointer]
+    - tab "Drivers" [ref=e22] [cursor=pointer]
+    - tab "Compilers" [ref=e23] [cursor=pointer]
+    - tab "Downloads" [ref=e24] [cursor=pointer]
+    - tab "Backup" [ref=e25] [cursor=pointer]
+    - tab "Import List" [ref=e26] [cursor=pointer]
+  - main [ref=e27]:
+    - tabpanel "Dashboard" [ref=e28]:
+      - heading "Laptop overview" [level=1] [ref=e29]
+      - paragraph [ref=e30]: Live hardware, OS and AI-model readiness for this machine.
+      - generic [ref=e31]:
+        - generic [ref=e32]:
+          - generic [ref=e33]: …
+          - generic [ref=e34]: Operating system
+        - generic [ref=e35]:
+          - generic [ref=e36]: …
+          - generic [ref=e37]: Processor
+        - generic [ref=e38]:
+          - generic [ref=e39]: …
+          - generic [ref=e40]: Memory
+        - generic [ref=e41]:
+          - generic [ref=e42]: …
+          - generic [ref=e43]: Disk free
+      - generic [ref=e44]:
+        - generic [ref=e45]:
+          - heading "Operating system" [level=2] [ref=e46]
+          - term [ref=e48]: Loading…
+        - generic [ref=e49]:
+          - heading "System configuration" [level=2] [ref=e50]
+          - term [ref=e52]: Loading…
+        - generic [ref=e53]:
+          - heading "Local AI models installed" [level=2] [ref=e54]
+          - table "Local AI models" [ref=e57]:
+            - rowgroup [ref=e58]:
+              - row [ref=e59]:
+                - columnheader "Model" [ref=e60]
+                - columnheader "Size" [ref=e61]
+            - rowgroup [ref=e62]:
+              - row [ref=e63]:
+                - cell "Loading…" [ref=e64]
+      - generic [ref=e65]:
+        - heading "AI models that fit this hardware" [level=2] [ref=e66]
+        - paragraph
+        - table "AI model fit" [ref=e69]:
+          - rowgroup [ref=e70]:
+            - row [ref=e71]:
+              - columnheader "Model (quantised)" [ref=e72]
+              - columnheader "Needs RAM" [ref=e73]
+              - columnheader "Needs VRAM" [ref=e74]
+              - columnheader "Best for" [ref=e75]
+              - columnheader "Verdict" [ref=e76]
+          - rowgroup [ref=e77]:
+            - row [ref=e78]:
+              - cell "Loading…" [ref=e79]
+  - contentinfo [ref=e80]: "Application Developed By Deepak Keshav Chougule · Universal App Installer · local-first: every action runs on this machine via Winget / apt / Flatpak / Homebrew."
+  - generic "Notifications"
+  - dialog [ref=e82]:
+    - heading "Sign in to continue" [level=2] [ref=e83]
+    - paragraph [ref=e84]: Universal App Installer is locked. Sign in as the local user, an administrator, or root.
+    - generic [ref=e85]: Username
+    - textbox "Username" [ref=e86]: deepakchougule
+    - generic [ref=e87]: Password
+    - textbox "Password" [ref=e88]:
+      - /placeholder: Required for Administrator / Root
+    - generic [ref=e89]: Role
+    - combobox "Role" [ref=e90]:
+      - option "Local user"
+      - option "Administrator" [selected]
+      - option "Root"
+    - alert [ref=e91]
+    - button "Sign in" [ref=e92] [cursor=pointer]

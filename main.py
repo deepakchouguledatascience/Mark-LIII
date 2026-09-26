@@ -694,7 +694,23 @@ class JarvisLive:
             f"{_addr}\n\n"
         )
 
+        # Detected OS goes in ahead of the tool descriptions, because the model
+        # reads the whole instruction as one document and this is what makes
+        # "run ls" vs "run dir" vs "open System Settings" land on the right
+        # command. It used to be stated as prose inside prompt.txt, which is how
+        # a Linux-Mint-specific tool description ended up describing the wrong
+        # platform. Rebuilt on every reconnect from live detection, so it cannot
+        # describe a machine the assistant is no longer on.
+        os_ctx = ""
+        try:
+            from core.os_detect import prompt_block as _os_prompt_block
+            os_ctx = _os_prompt_block()
+        except Exception as e:                          # pragma: no cover
+            print(f"[Jarvis] OS detection unavailable for prompt: {e}")
+
         parts = [time_ctx, identity_ctx]
+        if os_ctx:
+            parts.append(os_ctx)
         if mem_str:
             parts.append(mem_str)
         parts.append(sys_prompt)

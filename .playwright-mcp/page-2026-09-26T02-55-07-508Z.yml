@@ -1,0 +1,90 @@
+- generic [active] [ref=f10e1]:
+  - banner [ref=f10e2]:
+    - generic [ref=f10e3]:
+      - generic [ref=f10e4]: U
+      - generic [ref=f10e5]:
+        - text: Universal App Installer
+        - generic [ref=f10e6]: Windows · Linux · macOS
+    - status [ref=f10e7]:
+      - generic [ref=f10e9]: Detecting OS…
+    - search [ref=f10e10]:
+      - generic [ref=f10e11]:
+        - searchbox "Search packages" [ref=f10e12]
+        - generic "Press / to focus search" [ref=f10e13]: /
+      - button "Search" [ref=f10e14] [cursor=pointer]
+      - button "Toggle theme" [ref=f10e15] [cursor=pointer]: Theme
+  - tablist "Sections" [ref=f10e17]:
+    - tab "Dashboard" [selected] [ref=f10e18] [cursor=pointer]
+    - tab "Applications" [ref=f10e19] [cursor=pointer]
+    - tab "Search & Install" [ref=f10e20] [cursor=pointer]
+    - tab "Updates" [ref=f10e21] [cursor=pointer]
+    - tab "Drivers" [ref=f10e22] [cursor=pointer]
+    - tab "Compilers" [ref=f10e23] [cursor=pointer]
+    - tab "Downloads" [ref=f10e24] [cursor=pointer]
+    - tab "Backup" [ref=f10e25] [cursor=pointer]
+    - tab "Import List" [ref=f10e26] [cursor=pointer]
+  - main [ref=f10e27]:
+    - tabpanel "Dashboard" [ref=f10e28]:
+      - heading "Laptop overview" [level=1] [ref=f10e29]
+      - paragraph [ref=f10e30]: Live hardware, OS and AI-model readiness for this machine.
+      - generic [ref=f10e31]:
+        - generic [ref=f10e32]:
+          - generic [ref=f10e33]: …
+          - generic [ref=f10e34]: Operating system
+        - generic [ref=f10e35]:
+          - generic [ref=f10e36]: …
+          - generic [ref=f10e37]: Processor
+        - generic [ref=f10e38]:
+          - generic [ref=f10e39]: …
+          - generic [ref=f10e40]: Memory
+        - generic [ref=f10e41]:
+          - generic [ref=f10e42]: …
+          - generic [ref=f10e43]: Disk free
+      - generic [ref=f10e44]:
+        - generic [ref=f10e45]:
+          - heading "Operating system" [level=2] [ref=f10e46]
+          - term [ref=f10e48]: Loading…
+        - generic [ref=f10e49]:
+          - heading "System configuration" [level=2] [ref=f10e50]
+          - term [ref=f10e52]: Loading…
+        - generic [ref=f10e53]:
+          - heading "Local AI models installed" [level=2] [ref=f10e54]
+          - table "Local AI models" [ref=f10e57]:
+            - rowgroup [ref=f10e58]:
+              - row [ref=f10e59]:
+                - columnheader "Model" [ref=f10e60]
+                - columnheader "Size" [ref=f10e61]
+            - rowgroup [ref=f10e62]:
+              - row [ref=f10e63]:
+                - cell "Loading…" [ref=f10e64]
+      - generic [ref=f10e65]:
+        - heading "AI models that fit this hardware" [level=2] [ref=f10e66]
+        - paragraph
+        - table "AI model fit" [ref=f10e69]:
+          - rowgroup [ref=f10e70]:
+            - row [ref=f10e71]:
+              - columnheader "Model (quantised)" [ref=f10e72]
+              - columnheader "Needs RAM" [ref=f10e73]
+              - columnheader "Needs VRAM" [ref=f10e74]
+              - columnheader "Best for" [ref=f10e75]
+              - columnheader "Verdict" [ref=f10e76]
+          - rowgroup [ref=f10e77]:
+            - row [ref=f10e78]:
+              - cell "Loading…" [ref=f10e79]
+  - contentinfo [ref=f10e80]: "Application Developed By Deepak Keshav Chougule · Universal App Installer · local-first: every action runs on this machine via Winget / apt / Flatpak / Homebrew."
+  - generic "Notifications"
+  - dialog [ref=f10e82]:
+    - heading "Sign in to continue" [level=2] [ref=f10e83]
+    - paragraph [ref=f10e84]: Universal App Installer is locked. Sign in as the local user, an administrator, or root.
+    - generic [ref=f10e85]: Username
+    - textbox "Username" [ref=f10e86]: deepakchougule
+    - generic [ref=f10e87]: Password
+    - textbox "Password" [ref=f10e88]:
+      - /placeholder: Required for Administrator / Root
+    - generic [ref=f10e89]: Role
+    - combobox "Role" [ref=f10e90]:
+      - option "Local user"
+      - option "Administrator" [selected]
+      - option "Root"
+    - alert [ref=f10e91]
+    - button "Sign in" [ref=f10e92] [cursor=pointer]

@@ -238,3 +238,57 @@ def save_plugin_enabled(plugin_name: str, enabled: bool) -> None:
     plugins_cfg[plugin_name] = enabled
     data["plugins_enabled"] = plugins_cfg
     CONFIG_FILE.write_text(json.dumps(data, indent=4), encoding="utf-8")
+
+
+# ── opencode delegation (actions/opencode_agent.py) ──────────────────────────
+# Stored under its own top-level key rather than under plugin_config, because
+# opencode is a bundled action, not a drop-in plugin — putting it in
+# plugin_config would make it show up in the plugins panel next to things the
+# user installed themselves, which is a lie about where it came from.
+#
+# Defaults live in the action, not here. Storing only what the user actually
+# changed means a future change to a default does not get silently overridden by
+# a value this file wrote months ago.
+_OPENCODE_DEFAULTS = {
+    "model":    "",        # "" = use the model opencode is configured with
+    "agent":    "",        # "" = opencode's own default (build)
+    "auto":     True,      # let opencode approve its own edits
+    "timeout":  3600,      # seconds before a delegated task is stopped
+    "workdir":  "",        # default project folder for delegated tasks
+}
+
+
+def get_opencode_config() -> dict:
+    """Every opencode setting, defaults filled in for keys never set."""
+    stored = load_api_keys().get("opencode")
+    values = dict(_OPENCODE_DEFAULTS)
+    if isinstance(stored, dict):
+        for key, fallback in _OPENCODE_DEFAULTS.items():
+            if key in stored:
+                values[key] = stored[key]
+    return values
+
+
+def get_opencode_setting(key: str, default=None):
+    """A single opencode setting, falling back to the shipped default."""
+    return get_opencode_config().get(key, default)
+
+
+def save_opencode_config(values: dict) -> None:
+    """Merge `values` into the opencode settings (read-modify-write, like every
+    other setter here). Only the provided keys are touched."""
+    ensure_config_dir()
+    data: dict = {}
+    if CONFIG_FILE.exists():
+        try:
+            data = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
+        except Exception:
+            data = {}
+    current = data.get("opencode")
+    if not isinstance(current, dict):
+        current = {}
+    for key, value in values.items():
+        if key in _OPENCODE_DEFAULTS:
+            current[key] = value
+    data["opencode"] = current
+    CONFIG_FILE.write_text(json.dumps(data, indent=4), encoding="utf-8")
